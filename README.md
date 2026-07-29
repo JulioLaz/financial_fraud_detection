@@ -64,12 +64,14 @@ Se implementaron tres modelos principales:
 
 Para seleccionar el mejor modelo de clasificación para la detección de fraude financiero, analizaremos las métricas de desempeño: Accuracy, Precision, Recall, F1 y AUC. Cada métrica tiene su importancia, especialmente en el contexto de la detección de fraude. A continuación se presenta un análisis detallado de cada métrica y cómo influye en la selección del mejor modelo.
 
+Para seleccionar el mejor modelo de clasificación para la detección de fraude financiero, analizaremos las métricas de desempeño: Accuracy, Precision, Recall, F1 y AUC. Cada métrica tiene su importancia, especialmente en el contexto de la detección de fraude. A continuación se presenta un análisis detallado de cada métrica y cómo influye en la selección del mejor modelo.
+
 ### Métricas y su Importancia en la Detección de Fraude Financiero
 
 1. **Accuracy (Exactitud):**
    - **Definición:** Proporción de predicciones correctas sobre el total de casos.
-   - **Importancia:** En problemas de fraude, la exactitud puede ser engañosa si hay un desequilibrio en las clases (fraude vs. no fraude). Un modelo que siempre predice "no fraude" puede tener una alta exactitud si los casos de fraude son raros.
-   
+   - **Importancia:** En problemas de fraude, la exactitud puede ser engañosa si hay un desequilibrio en las clases (fraude vs. no fraude). Un modelo que siempre predice "no fraude" puede tener una alta exactitud si los casos de fraude son raros. En este dataset, con 0.3% de casos de fraude, es prácticamente inútil como criterio de selección.
+
 2. **Precision (Precisión):**
    - **Definición:** Proporción de verdaderos positivos sobre el total de positivos predichos.
    - **Importancia:** Es crucial cuando el costo de un falso positivo es alto. En fraude financiero, una baja precisión significaría muchos falsos positivos, lo que podría resultar en la investigación innecesaria de transacciones legítimas.
@@ -80,61 +82,52 @@ Para seleccionar el mejor modelo de clasificación para la detección de fraude 
 
 4. **F1 Score:**
    - **Definición:** Media armónica de la precisión y la sensibilidad.
-   - **Importancia:** Proporciona un equilibrio entre precisión y sensibilidad, útil cuando se necesita un compromiso entre ambos.
+   - **Importancia:** Proporciona un equilibrio entre precisión y sensibilidad, útil cuando se necesita un compromiso entre ambos. Ojo: calculado sobre un único umbral fijo (0.5), puede no reflejar el verdadero potencial del modelo si ese umbral no está calibrado.
 
 5. **AUC (Área bajo la Curva ROC):**
    - **Definición:** Medida del rendimiento del modelo a través de todos los umbrales posibles.
-   - **Importancia:** Refleja la capacidad del modelo para diferenciar entre las clases. Un AUC cercano a 1 indica un modelo excelente.
+   - **Importancia:** Refleja la capacidad del modelo para diferenciar entre las clases, independientemente del umbral elegido. Es el criterio más robusto para comparar modelos antes de decidir un punto de corte operativo.
 
-### Resultados de las Métricas por Modelo
+### Resultados de las Métricas por Modelo (umbral de decisión 0.5)
 
-| Modelo         | Accuracy | Precision | Recall | F1   | AUC  |
-|----------------|----------|-----------|--------|------|------|
-| **RandomForest** | 1.00     | 0.95      | 1.00   | 0.97 | 1.00 |
-| **tensorflow**   | 0.91     | 0.87      | 0.71   | 0.78 | 0.84 |
-| **XGB**          | 0.94     | 0.91      | 0.80   | 0.85 | 0.89 |
+| Modelo         | Accuracy | Precision | Recall | F1     | AUC    |
+|----------------|----------|-----------|--------|--------|--------|
+| **RandomForest** | 1.00     | 0.53      | 0.52   | 0.53   | 0.76   |
+| **TensorFlow**    | 0.9967   | 0.4321    | 0.3769 | 0.4026 | 0.9214 |
+| **XGBoost**       | 0.9772   | 0.0890    | 0.7242 | 0.1585 | 0.9438 |
 
 ### Análisis Comparativo
 
 1. **RandomForest:**
-   - **Exactitud:** Perfecta (1.00)
-   - **Precisión:** Alta (0.95), indicando pocos falsos positivos.
-   - **Sensibilidad:** Perfecta (1.00), indicando ningún fraude no detectado.
-   - **F1 Score:** Muy alta (0.97), excelente equilibrio entre precisión y sensibilidad.
-   - **AUC:** Perfecta (1.00), capacidad máxima para diferenciar entre fraude y no fraude.
+   - Con el umbral por defecto (0.5) muestra el F1 más alto de los tres (0.53), producto de una precisión y recall relativamente equilibrados en ese punto.
+   - Sin embargo, su **AUC (0.76) es notablemente inferior** al de XGBoost y TensorFlow (~0.92-0.94). Esto indica que su capacidad para separar fraude de no-fraude a través de distintos umbrales es mucho más débil — el buen F1 en 0.5 es un resultado puntual de ese umbral específico, no evidencia de un modelo superior en general.
+   - Solo detecta 842 de 1621 fraudes reales (recall 0.52), dejando pasar 779 casos.
 
 2. **TensorFlow:**
-   - **Exactitud:** Alta (0.91)
-   - **Precisión:** Moderada (0.87)
-   - **Sensibilidad:** Moderada (0.71), indicando algunos casos de fraude no detectados.
-   - **F1 Score:** Moderada (0.78)
-   - **AUC:** Moderada (0.84)
+   - AUC alto (0.9214), buena capacidad de discriminación general.
+   - Con el umbral por defecto, recall bajo (0.3769): deja sin detectar 1010 de 1621 fraudes.
+   - Precision razonable (0.4321) en ese mismo punto.
 
-3. **XGB:**
-   - **Exactitud:** Alta (0.94)
-   - **Precisión:** Alta (0.91)
-   - **Sensibilidad:** Alta (0.80)
-   - **F1 Score:** Alta (0.85)
-   - **AUC:** Alta (0.89)
+3. **XGBoost:**
+   - **AUC más alto de los tres (0.9438)** — el modelo con mejor capacidad de separación entre clases.
+   - Con el umbral por defecto, recall muy alto (0.7242): detecta 1174 de 1621 fraudes, el mejor de los tres en ese aspecto, aunque a costa de mucha precisión (0.089, con 12023 falsas alarmas).
+   - Al ajustar el umbral (análisis de curva precision-recall realizado previamente), alcanza el mejor F1 óptimo (0.4967) y la mejor precisión al recall objetivo del 80% (0.0415) entre los modelos comparados.
 
 ### Selección del Mejor Modelo
 
-Para la detección de fraude financiero, la precisión y la sensibilidad son métricas críticas. Queremos minimizar los falsos positivos (para reducir costos innecesarios) y los falsos negativos (para evitar fraudes no detectados).
+El AUC es el criterio más confiable acá porque no depende de un umbral fijo — y en fraude, el umbral final se ajusta según la capacidad operativa de revisión del negocio, no queda fijo en 0.5. Bajo ese criterio:
 
-- **RandomForest** muestra un desempeño perfecto en todas las métricas. Tiene una precisión muy alta, lo que significa pocos falsos positivos, y una sensibilidad perfecta, lo que significa que detecta todos los casos de fraude. El F1 Score y el AUC también son perfectos, lo que indica un excelente equilibrio y capacidad de discriminación.
-
-- **TensorFlow** tiene un buen desempeño, pero su sensibilidad (0.71) y F1 Score (0.78) son inferiores, lo que indica que podría pasar por alto algunos casos de fraude.
-
-- **XGB** también muestra un buen desempeño con alta precisión (0.91) y sensibilidad (0.80), pero no alcanza los niveles de RandomForest.
+- **XGBoost** tiene el AUC más alto (0.9438) y, tras el análisis de curva precision-recall, ofrece el mejor equilibrio ajustable entre detección de fraude y falsas alarmas en toda la curva, no solo en un punto.
+- **TensorFlow** queda segundo, con AUC 0.9214 y una curva PR consistentemente por debajo de la de XGBoost.
+- **RandomForest**, pese al F1 aparentemente favorable en el umbral 0.5, tiene el AUC más bajo (0.76) de los tres, lo que sugiere menor capacidad real de discriminación y menos margen para mejorar ajustando el umbral.
 
 ### Conclusión
 
-**RandomForest** es el mejor modelo para la detección de fraude financiero según las métricas de precisión, sensibilidad, F1 Score y AUC. Su desempeño perfecto en estas métricas lo hace ideal para minimizar tanto los falsos positivos como los falsos negativos, asegurando una detección precisa y confiable del fraude financiero.
-El modelo RandomForest ha demostrado ser el más efectivo para la detección de fraude financiero, mostrando un rendimiento perfecto en todas las métricas clave: precisión (0.95), sensibilidad (1.00), F1 Score (0.97) y AUC (1.00). Este desempeño asegura una detección precisa y confiable de fraudes, minimizando tanto los falsos positivos como los falsos negativos. Se recomienda encarecidamente implementar el modelo RandomForest para optimizar la seguridad financiera y reducir costos operativos.
+**XGBoost** es el modelo más adecuado para la detección de fraude financiero en este análisis, no RandomForest. Su AUC superior (0.9438) confirma la mejor capacidad de discriminación entre clases a través de todos los umbrales, y el análisis de curva precision-recall mostró que, ajustando el umbral de decisión, XGBoost logra el mejor F1 óptimo (0.4967) y la mejor precisión al recall objetivo del 80% (0.0415) entre los modelos evaluados. RandomForest, pese a un F1 favorable en el umbral por defecto, mostró el AUC más bajo (0.76), indicando una capacidad de separación de clases considerablemente más débil.
 
 ### Recomendación
 
-Se recomienda implementar el modelo RandomForest para la detección de fraude financiero debido a su rendimiento superior en todas las métricas relevantes para el negocio. Este modelo proporcionará una detección de fraude precisa y confiable, optimizando tanto la seguridad como los costos operativos.
+Se recomienda implementar **XGBoost** como modelo principal para la detección de fraude financiero, ajustando el umbral de decisión según la capacidad operativa de revisión manual del negocio (por ejemplo, en el rango 0.6-0.7 para un balance recall/precision razonable, o más bajo si se prioriza capturar más fraude a costa de más falsas alarmas). Se sugiere validar además el desempeño de LightGBM con sus métricas completas al umbral 0.5 antes de descartarlo, dado que su curva precision-recall se mostró muy cercana a la de XGBoost.
 
 ## Contribuciones
 
